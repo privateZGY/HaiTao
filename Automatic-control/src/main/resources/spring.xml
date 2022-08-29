@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.0.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.0.xsd">
+
+    <!--开启spring注解，扫描spring注解所在的包 -->
+    <context:component-scan base-package="com.automatic.AutomaticControl"/>
+
+    <!-- 加载资源文件 -->
+    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+        <!-- 配置资源文件 -->
+        <property name="locations">
+            <list>
+                <value>classpath:jdbc.properties</value>
+            </list>
+        </property>
+    </bean>
+
+    <!-- ========================================配置数据源========================================= -->
+    <!-- 配置数据源，使用的是alibaba的Druid(德鲁伊)数据源 -->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">
+        <property name="url" value="${url}" />
+        <property name="username" value="${username}" />
+        <property name="password" value="${password}" />
+        <!-- 初始化连接大小 -->
+        <property name="initialSize" value="${db.initialSize}" />
+        <!-- 连接池最大使用连接数量 -->
+        <property name="maxActive" value="${db.maxActive}" />
+        <!-- 连接池最小空闲 -->
+        <property name="minIdle" value="${db.minIdle}" />
+        <!-- 获取连接最大等待时间 -->
+        <property name="maxWait" value="${db.maxWait}" />
+        <property name="validationQuery" value="${validationQuery}" />
+        <property name="testOnBorrow" value="false" />
+        <property name="testOnReturn" value="false" />
+        <property name="testWhileIdle" value="true" />
+        <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+        <property name="timeBetweenEvictionRunsMillis" value="${db.timeBetweenEvictionRunsMillis}" />
+        <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+        <property name="minEvictableIdleTimeMillis" value="${db.minEvictableIdleTimeMillis}" />
+        <!-- 打开removeAbandoned功能 -->
+        <property name="removeAbandoned" value="true" />
+        <!-- 1800秒，也就是30分钟 -->
+        <property name="removeAbandonedTimeout" value="1800" />
+        <!-- 关闭abanded连接时输出错误日志 -->
+        <property name="logAbandoned" value="true" />
+        <!-- 监控数据库 -->
+        <!-- <property name="filters" value="stat" /> -->
+        <property name="filters" value="mergeStat" />
+    </bean>
+
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!-- 配置mapper接口所在路径，扫描路径下的所有的mapper接口  如果配置多个mapper的包，使用逗号进行分割 -->
+        <!-- 在mybatis当中，dao层与mapper是一样的，只是不同地方叫法不一样，mapper.xml是写sql的，是用来操作数据库的 -->
+        <property name="basePackage" value="com.automatic.AutomaticControl.*.mapper"></property>
+    </bean>
+    <!-- spring整合Mybatis的配置，其实主要是mybatis的相应配置 -->
+    <!-- sqlSession工厂 mapper的接口配置 -->
+    <!-- Spring整合Mybatis，更多查看文档：http://mp.baomidou.com -->
+    <bean id="sqlSessionFactory" class="com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource" />
+        <!-- 加载全局的配置文件 -->
+        <property name="configLocation" value="classpath:mybatis-config.xml"></property>
+        <!-- 配置mapper的扫描，找到所有的mapper.xml映射文件。编码时放开注释，如果放开需要在mapper中写一个mapper也是可以的 -->
+        <property name="mapperLocations" value="classpath:com/automatic/AutomaticControl/*/mapper/xml/*.xml"></property>
+        <!-- 配置类型别名 -->
+        <property name="typeAliasesPackage" value="com.automatic.AutomaticControl.*.entity"></property>
+        <property name="plugins">
+            <array>
+                <bean class="com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor">
+                    <property name="interceptors">
+                        <list>
+                            <bean class="com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor"></bean>
+                        </list>
+                    </property>
+                </bean>
+            </array>
+        </property>
+        <!-- 全局配置 -->
+        <property name="globalConfig" ref="globalConfiguration" />
+    </bean>
+
+    <!-- 要自动填充的类 -->
+    <bean class="com.automatic.AutomaticControl.core.mybatisplus.MybatisPlusMetaObjectHandler" id="myMetaObjectHandler"/>
+
+    <bean id="globalConfiguration" class="com.baomidou.mybatisplus.core.config.GlobalConfig">
+        <property name="metaObjectHandler" ref="myMetaObjectHandler"/>
+    </bean>
+
+    <!-- 定义事务管理器 -->
+    <bean id="transactionManager"
+          class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+    <!-- 定义事务策略 -->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <!--所有以query开头的方法都是只读的 -->
+            <tx:method name="query*" read-only="true" />
+            <tx:method name="get*" read-only="true" />
+            <tx:method name="find*" read-only="true" />
+            <tx:method name="select*" read-only="true" />
+            <!--其他方法使用默认事务策略 -->
+            <tx:method name="*" />
+        </tx:attributes>
+    </tx:advice>
+
+    <aop:config>
+        <!--pointcut元素定义一个切入点，execution中的第一个星号 用以匹配方法的返回类型，
+        这里星号表明匹配所有返回类型。 com.abc.dao.*.*(..)表明匹配cn.itcast.mybatis.service包下的所有类的所有 
+        方法 -->
+        <aop:pointcut id="myPointcut" expression="execution(* com.automatic.AutomaticControl.*.service.*.*(..))" />
+        <!--将定义好的事务处理策略应用到上述的切入点 -->
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="myPointcut" />
+    </aop:config>
+
+    <import resource="classpath:spring-shiro.xml"></import>
+
+</beans>

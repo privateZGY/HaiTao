@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.automatic.AutomaticControl.administration.mapper.AdministrationDictionaryDetailsMapper">
+    <select id="queryDictTextByKey" resultType="java.lang.String">
+        SELECT
+            administration_dictionary_details.dictionary_value
+        FROM
+            administration_dictionary_details
+                INNER JOIN administration_dictionary ON administration_dictionary_details.dictionary_id = administration_dictionary.dirctionary_id
+        WHERE
+            administration_dictionary_details.delete_flag = 0
+          AND administration_dictionary.delete_flag = 0
+          AND administration_dictionary.dirctionary_code =  #{ code }
+          AND administration_dictionary_details.dictionary_code = #{ key }
+    </select>
+</mapper>

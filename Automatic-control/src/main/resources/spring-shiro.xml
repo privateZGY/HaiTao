@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans
+		http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/util
+		http://www.springframework.org/schema/util/spring-util.xsd"
+	default-lazy-init="true">
+    <!--Shiro-->
+    <!-- Realm实现 -->
+    <bean id="statelessRealm" class="com.automatic.AutomaticControl.core.shiro.StatelessShiroRealm">
+        <property name="cachingEnabled" value="false"/>
+    </bean>
+    <!-- 禁用掉会话调度器 -->
+    <bean id="sessionManager" class="org.apache.shiro.session.mgt.DefaultSessionManager">
+        <property name="sessionValidationSchedulerEnabled" value="false"/>
+    </bean>
+    <!--解决报错，组装默认的subjectDAO-->
+    <bean id="subjectDAO" class="org.apache.shiro.mgt.DefaultSubjectDAO">
+        <property name="sessionStorageEvaluator" ref="sessionStorageEvaluator"/>
+    </bean>
+    <bean id="sessionStorageEvaluator" class="org.apache.shiro.mgt.DefaultSessionStorageEvaluator">
+        <property name="sessionStorageEnabled" value="false"/>
+    </bean>
+    <!-- 安全管理器 -->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="realm" ref="statelessRealm"/>
+        <property name="subjectDAO" ref="subjectDAO"/>
+        <property name="sessionManager" ref="sessionManager"/>
+    </bean>
+    <!-- 相当于调用SecurityUtils.setSecurityManager(securityManager) -->
+    <bean class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+        <property name="staticMethod" value="org.apache.shiro.SecurityUtils.setSecurityManager"/>
+        <property name="arguments" ref="securityManager"/>
+    </bean>
+
+    <bean id="myStatelessFilter" class="com.automatic.AutomaticControl.core.shiro.StatelessShiroFilter"/>
+
+    <!-- 需要认证的就写在这一个类ChainDefinitionSectionMetaSource
+     1、这一个类可以修改spring.shiro.xml里面<value>这里面的一个属性下面的值
+     -->
+    <bean id="chainDefinitionSectionMetaSource" class="com.automatic.AutomaticControl.core.shiro.ChainDefinitionSectionMetaSource">
+        <!-- 属性，他的值为value -->
+        <property name="filterChainDefinitions">
+            <!--
+            1.这里面的值就确定他需不需要权限认证去访问这个URL
+            2.等于anon就是不需要权限认证
+            3.需要权限认证则加上关键字perms（在这里是鉴权一个URL的一个方式去鉴权）
+            perms：例子/admins/user/**=perms[user:add:*]，perms参数可以写多个，多个时必须加上引号，并且参数之间用逗号分割，
+            例子：例如/admins/user/**=perms["user:add:*,user:modify:*"]，当有多个参数时必须每个参数都通过才通过，想当于isPermitedAll()方法。
+            范例：/education/education-grade/list=statelessAuth,perms[education:education-grade:list]
+            范例解释：(statelessAuth)是我们自定义的一个权限认证的一个类，对应的是<entry key="statelessAuth" value-ref="myStatelessFilter"/>这一个过滤器
+            4.角色的权限认证需要加上关键字roles
+            roles：例子/admins/user/**=roles[admin],参数可以写多个，多个时必须加上引号，并且参数之间用逗号分割，当有多个参数时，
+            例子：/admins/user/**=roles["admin,guest"]，每个参数通过才算通过，相当于hasAllRoles()方法。
+            /education/education-grade/list=statelessAuth,perms（[education:education-grade:list]这里是一个权限标志，
+            这一个标志可以证明他有没有权限去访问这一个链接，只要用户拥有这一个标志就代表他对/education/education-grade/list这一个接口拥有访问权限）
+            -->
+            <value>
+                <!--
+                1、所有权限应该写在这里
+                2、不需要认证的和需要认证的都应该写在这个value里面
+                3、如果我们把这个需要认证的变成一个动态的形式（动态的形式相对更加的灵活方便）
+                如果变成了一个动态的形式我们这一个value里面就只需要写不需要认证的URL写到这里面
+                4./**代表通配符，意思是放行链接为：/upload及后面任意字符的链接，如/upload/1231、/upload/asdjaj/asdad……这些链接都是放行的
+                -->
+<!--                /=anon-->
+<!--                /basic/user/login=anon-->
+<!--                /index.jsp=anon-->
+<!--                /system/system-user/unauthorized=anon-->
+<!--                /swagger-ui/index.html=anon-->
+<!--                /swagger-ui/**=anon-->
+<!--                /swagger-resources/**=anon-->
+<!--                /v2/api-docs=anon-->
+<!--                /v3/api-docs=anon-->
+<!--                /webjars/**=anon-->
+<!--                /function/function-upload-img/upload=anon-->
+<!--                /upload/**=anon-->
+            </value>
+        </property>
+    </bean>
+
+    <!-- Shiro的Web过滤器 -->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <property name="filters">
+            <util:map>
+                <!-- 对应自定义的一个类的过滤器 -->
+                <entry key="statelessAuth" value-ref="myStatelessFilter"/>
+            </util:map>
+        </property>
+<!--        <property name="loginUrl" value="/system/system-user/login"/>-->
+<!--        <property name="unauthorizedUrl" value="/system/system-user/unauthorized"/>-->
+<!--        <property name="filterChainDefinitionMap" ref="chainDefinitionSectionMetaSource" />-->
+    </bean>
+
+</beans>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.automatic.AutomaticControl.jurisdiction.mapper.JurisdictionRoleJurisdictionMapper">
+<select id="selectRoleJurisdiction" resultType="com.automatic.AutomaticControl.jurisdiction.entity.JurisdictionTable">
+
+    SELECT
+        jurisdiction_table.*
+    FROM
+        jurisdiction_table
+            INNER JOIN jurisdiction_role_jurisdiction ON jurisdiction_role_jurisdiction.jurisdiction_id = jurisdiction_table.jurisdiction_id
+    WHERE
+        jurisdiction_role_jurisdiction.delete_flag = 0
+      AND jurisdiction_table.delete_flag = 0
+      AND jurisdiction_role_jurisdiction.role_id = #{roleId}
+
+</select>
+</mapper>
